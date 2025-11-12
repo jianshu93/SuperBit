@@ -1,0 +1,34 @@
+[package]
+name = "SuperBit"
+version = "0.1.0"
+authors = ["Jianshu Zhao <jianshuzhao@yahoo.com>"]
+edition = "2024"
+readme = "../README.md"
+homepage = "https://github.com/serega/SuperBit"
+repository = "https://github.com/serega/SuperBit"
+license = "MIT"
+keywords = ["lsh",  "SRP", "hashing", "Angular"]
+description = "Locality Sensitive Hashing for Angular Similarity"
+
+
+
+[lib]
+name = "superbit"
+path = "src/lib.rs"
+
+[dependencies]
+rand = "0.8.5"
+rand_pcg = "0.3.1"
+siphasher = "0.3.10"
+rayon = "1.7.0"
+num-traits = "0.2.15"
+smallvec = { version = "1.10.0", features = ["const_generics", "const_new", "serde"] }
+xxhash-rust = { version = "0.8.15", default-features = false, features = ["xxh3"] }
+rand_core = "0.9.3"
+rand_xoshiro = "0.7.0"
+
+
+
+
+
+
