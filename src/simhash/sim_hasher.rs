@@ -18,10 +18,7 @@ pub struct SimSipHasher64 {
 
 impl SimSipHasher64 {
     pub fn new(key1: u64, key2: u64) -> Self {
-        SimSipHasher64 {
-            key1,
-            key2,
-        }
+        SimSipHasher64 { key1, key2 }
     }
 }
 
@@ -39,7 +36,6 @@ impl SimHasher for SimSipHasher64 {
     }
 }
 
-
 pub struct SimSipHasher128 {
     key1: u64,
     key2: u64,
@@ -47,10 +43,7 @@ pub struct SimSipHasher128 {
 
 impl SimSipHasher128 {
     pub fn new(key1: u64, key2: u64) -> Self {
-        SimSipHasher128 {
-            key1,
-            key2,
-        }
+        SimSipHasher128 { key1, key2 }
     }
 }
 
@@ -91,10 +84,12 @@ impl SimHasher for Xxh3Hasher64 {
     }
 }
 
-pub struct Xxh3Hasher128;           // no fields
+pub struct Xxh3Hasher128; // no fields
 
 impl Xxh3Hasher128 {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 impl SimHasher for Xxh3Hasher128 {
@@ -105,8 +100,8 @@ impl SimHasher for Xxh3Hasher128 {
     where
         U: Hash,
     {
-        let mut h = Xxh3::new();    // default seed = 0
+        let mut h = Xxh3::new(); // default seed = 0
         item.hash(&mut h);
-        h.digest128()               // returns u128 directly (crate ≥ 1.2)
+        h.digest128() // returns u128 directly (crate ≥ 1.2)
     }
 }

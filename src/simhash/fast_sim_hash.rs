@@ -9,8 +9,8 @@ use rand_core::{RngCore, SeedableRng};
 use rand_xoshiro::Xoroshiro128PlusPlus;
 use std::hash::Hash;
 
-use super::sim_hasher::SimHasher;
 use super::SimHashBits;
+use super::sim_hasher::SimHasher;
 
 /// number of u64 lanes needed for a signature of length `L`
 const fn tmp_len<const L: usize, const B: usize>() -> usize {
@@ -34,7 +34,7 @@ where
     S: SimHashBits,
 {
     hasher: H,
-    _p:     PhantomData<S>,
+    _p: PhantomData<S>,
 }
 
 impl<H, S, const L: usize, const BULK: usize> FastSimHash<H, S, L, BULK>
@@ -44,17 +44,24 @@ where
 {
     // constants identical to the Java reference
     // const PER_LANE: usize = 1 << BULK;
-    const BITS_PER_COUNTER: usize = 1 << (6 - BULK);            // 8, 4, 2, …
-    const BULK_MASK: u64 = bulk_mask::<BULK>();         // …001001…
-    const TMP_LIMIT: u64 =
-        (1u64 << 1 << (Self::BITS_PER_COUNTER - 1)) - 1;        // 255/15/3/1
+    const BITS_PER_COUNTER: usize = 1 << (6 - BULK); // 8, 4, 2, …
+    const BULK_MASK: u64 = bulk_mask::<BULK>(); // …001001…
+    const TMP_LIMIT: u64 = (1u64 << 1 << (Self::BITS_PER_COUNTER - 1)) - 1; // 255/15/3/1
 
     #[inline(always)]
-    const fn tmp_len() -> usize { tmp_len::<L, BULK>() }
+    const fn tmp_len() -> usize {
+        tmp_len::<L, BULK>()
+    }
 
     pub fn new(hasher: H) -> Self {
-        assert!(L <= S::bit_length(), "signature length too large for container");
-        Self { hasher, _p: PhantomData }
+        assert!(
+            L <= S::bit_length(),
+            "signature length too large for container"
+        );
+        Self {
+            hasher,
+            _p: PhantomData,
+        }
     }
 
     pub fn create_signature<T, U>(&self, iter: T) -> S
@@ -65,7 +72,7 @@ where
         let mut counts: [i32; L] = [0; L];
         let mut tmp: Vec<u64> = vec![0; Self::tmp_len()];
 
-        let num_chunks = tmp.len() >> (6 - BULK);           // full 64-bit groups
+        let num_chunks = tmp.len() >> (6 - BULK); // full 64-bit groups
         let num_tail_lanes = tmp.len() & (0x3f >> BULK);
 
         let mut processed_block = 0u64;
@@ -76,7 +83,7 @@ where
             total_elements += 1;
 
             let seed = self.hasher.hash(&feat);
-            let mut rng  = Xoroshiro128PlusPlus::seed_from_u64(seed);
+            let mut rng = Xoroshiro128PlusPlus::seed_from_u64(seed);
 
             // full 64-bit chunks (update 8 counters when BULK=3)
             for h in 0..num_chunks {
@@ -117,9 +124,9 @@ where
     // merge packed tmp counters into final signed counts
     #[inline(always)]
     fn flush<const LL: usize, const B: usize>(acc: &mut [i32; LL], tmp: &mut [u64]) {
-        let per : usize = 1 << B;
-        let width : usize = 1 << (6 - B);
-        let mask  : u64   = (1u64 << width) - 1;
+        let per: usize = 1 << B;
+        let width: usize = 1 << (6 - B);
+        let mask: u64 = (1u64 << width) - 1;
 
         // full bundles
         let full = LL >> B;
@@ -166,9 +173,9 @@ where
                 // For each bit in this 64-bit block
                 for b in 0..take {
                     if ((rnd >> b) & 1) == 1 {
-                        counts[idx + b] += w;   // contribute +w for bit=1
+                        counts[idx + b] += w; // contribute +w for bit=1
                     } else {
-                        counts[idx + b] -= w;   // contribute -w for bit=0
+                        counts[idx + b] -= w; // contribute -w for bit=0
                     }
                 }
                 idx += take;
@@ -186,14 +193,13 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::{BitArray, SimHashBits};
+    use super::*;
     use crate::simhash::sim_hasher::Xxh3Hasher64;
-    use rand::{Rng, SeedableRng};
     use rand::rngs::StdRng;
+    use rand::{Rng, SeedableRng};
     use std::time::Instant;
     // cargo test --release fast_simhash_bitarray -- --nocapture
     #[test]
@@ -202,10 +208,12 @@ mod tests {
         const L: usize = 1024;
         const N: usize = 100_000;
 
-        let mut rng  = StdRng::seed_from_u64(42);
+        let mut rng = StdRng::seed_from_u64(42);
         let data1: Vec<u8> = (0..N).map(|_| rng.gen_range(0..=1)).collect();
-        let mut data2       = data1.clone();
-        for i in (0..N).step_by(4) { data2[i] ^= 1; }
+        let mut data2 = data1.clone();
+        for i in (0..N).step_by(4) {
+            data2[i] ^= 1;
+        }
 
         // ground-truth cosine and angle
         let (mut dot, mut n1, mut n2) = (0f64, 0f64, 0f64);
@@ -213,24 +221,24 @@ mod tests {
             let x = data1[i] as f64;
             let y = data2[i] as f64;
             dot += x * y;
-            n1  += x * x;
-            n2  += y * y;
+            n1 += x * x;
+            n2 += y * y;
         }
         let cosine = (dot / (n1.sqrt() * n2.sqrt())).clamp(-1.0, 1.0);
-        let theta  = cosine.acos(); 
-        let p_bit  = theta / std::f64::consts::PI; // Charikar: P(bit differs)
+        let theta = cosine.acos();
+        let p_bit = theta / std::f64::consts::PI; // Charikar: P(bit differs)
 
         // 1-σ acceptance band for
-        let mean   = p_bit * L as f64;
-        let sigma  = (L as f64 * p_bit * (1.0 - p_bit)).sqrt();
-        let low    = (mean - 2.0 * sigma).round() as usize;
-        let high   = (mean + 2.0 * sigma).round() as usize;
+        let mean = p_bit * L as f64;
+        let sigma = (L as f64 * p_bit * (1.0 - p_bit)).sqrt();
+        let low = (mean - 2.0 * sigma).round() as usize;
+        let high = (mean + 2.0 * sigma).round() as usize;
 
         let fsh = FastSimHash::<Xxh3Hasher64, Bits, L>::new(Xxh3Hasher64::new());
         let t1 = Instant::now();
-        let h1  = fsh.create_signature((0..N).map(|i| (i as u64, data1[i])));
-        let h2  = fsh.create_signature((0..N).map(|i| (i as u64, data2[i])));
-        let hd  = h1.hamming_distance(&h2);
+        let h1 = fsh.create_signature((0..N).map(|i| (i as u64, data1[i])));
+        let h2 = fsh.create_signature((0..N).map(|i| (i as u64, data2[i])));
+        let hd = h1.hamming_distance(&h2);
         let dur = t1.elapsed();
         println!("fast SimHash: {:?}", dur);
         println!("HD = {hd}, expected ≈ {low}–{high}  (p_bit ≈ {:.3})", p_bit);

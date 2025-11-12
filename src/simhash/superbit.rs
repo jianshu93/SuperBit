@@ -1,9 +1,9 @@
 // Super-Bit:
+use super::SimHashBits;
+use super::sim_hasher::SimHasher;
 use core::marker::PhantomData;
 use std::hash::Hash;
 use std::hash::Hasher;
-use super::sim_hasher::SimHasher;
-use super::SimHashBits;
 use xxhash_rust::xxh3::Xxh3;
 
 pub struct SuperBitSimHash<H, S, const L: usize>
@@ -12,9 +12,9 @@ where
     S: SimHashBits,
 {
     hasher: H,
-    r: usize,                 // superbit depth (block size)
-    m: usize,                 // number of blocks = L / r
-    q_blocks: Vec<Vec<f32>>,  // each is r×r row-major orthonormal
+    r: usize,                // superbit depth (block size)
+    m: usize,                // number of blocks = L / r
+    q_blocks: Vec<Vec<f32>>, // each is r×r row-major orthonormal
     seed: u64,
     _phantom: PhantomData<S>, // keep S "used" at the type level
 }
@@ -103,7 +103,7 @@ where
     }
 
     /// Weighted variant (useful for TF/IDF or MS intensities after L2 norm).
-        /// Weighted variant (useful for TF/IDF or MS intensities after L2 norm).
+    /// Weighted variant (useful for TF/IDF or MS intensities after L2 norm).
     pub fn create_signature_weighted<U>(&self, iter: impl Iterator<Item = (U, f32)>) -> S
     where
         U: Hash,
@@ -113,7 +113,9 @@ where
         let mut g = vec![0f32; self.r];
 
         for (item, w) in iter {
-            if w == 0.0 { continue; }
+            if w == 0.0 {
+                continue;
+            }
 
             // Stable per-item 64-bit base using the generic hasher H
             let base: u64 = self.hasher.hash(&item);
@@ -123,10 +125,7 @@ where
                 let qb = &self.q_blocks[b]; // row-major r×r
 
                 // Seed a tiny PRNG (SplitMix64) once per (item, block)
-                let mut s = self.seed
-                    ^ base
-                    ^ ((b as u64) << 32)
-                    ^ 0x9E37_79B9_7F4A_7C15;
+                let mut s = self.seed ^ base ^ ((b as u64) << 32) ^ 0x9E37_79B9_7F4A_7C15;
 
                 // Fill g[j] ∈ {+1,-1} using SplitMix64
                 for j in 0..self.r {
@@ -169,19 +168,19 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::{BitArray, SimHashBits};
+    use super::*;
     use crate::simhash::sim_hasher::Xxh3Hasher64;
-    use rand::rngs::StdRng;
     use rand::Rng;
     use rand::SeedableRng;
+    use rand::rngs::StdRng;
 
     // cargo test --release superbit_simhash_bitarray -- --nocapture
     #[test]
     fn superbit_simhash_bitarray() {
         type Bits = BitArray<16>; // 16×64 = 1024 bits
         const L: usize = 1024;
-        const R: usize = 32;      // block size; L % R == 0
+        const R: usize = 32; // block size; L % R == 0
         const N: usize = 100_000;
 
         let mut rng = StdRng::seed_from_u64(12345);
@@ -206,7 +205,7 @@ mod tests {
 
         let mean = p_bit * L as f64;
         let sigma = (L as f64 * p_bit * (1.0 - p_bit)).sqrt();
-        let low = (mean - 3.0 * sigma).floor().max(0.0) as usize;   // 3σ band for robustness
+        let low = (mean - 3.0 * sigma).floor().max(0.0) as usize; // 3σ band for robustness
         let high = (mean + 3.0 * sigma).ceil().min(L as f64) as usize;
 
         let sb = SuperBitSimHash::<Xxh3Hasher64, Bits, L>::new(Xxh3Hasher64::new(), R, 0xDEAD_BEEF);
@@ -219,5 +218,91 @@ mod tests {
             hd, low, high, p_bit, mean, sigma
         );
         assert!((low..=high).contains(&hd));
+    }
+    // cargo test --release superbit_vs_classic_weighted_accuracy -- --nocapture
+    #[test]
+    fn superbit_vs_classic_weighted_accuracy() {
+        use crate::simhash::sim_hash::SimHash;
+        use crate::simhash::sim_hasher::{Xxh3Hasher64, Xxh3Hasher128};
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+
+        // Signature + block sizes
+        const L: usize = 256; // signature length
+        const R: usize = 16; // SuperBit block size, must divide L
+        const D: usize = 4096; // dimensionality (many bins/features)
+        const REPS: usize = 5; // average across a few draws for stability
+
+        let mut rng = StdRng::seed_from_u64(2025_11_12);
+
+        // SuperBit (uses 64-bit item hasher) over u128 signature
+        let sb = SuperBitSimHash::<Xxh3Hasher64, u128, L>::new(Xxh3Hasher64::new(), R, 0xD00D_F00D);
+        // Classic SimHash (weighted) must hash to u128 for L=256 bits
+        let sh = SimHash::<Xxh3Hasher128, u128, L>::new(Xxh3Hasher128::new());
+
+        let mut mae_sb = 0.0f64;
+        let mut mae_sh = 0.0f64;
+
+        for _ in 0..REPS {
+            // Construct two *positive-weighted* dense vectors (MS-like):
+            // a ~ Exp(1), b = a with ~15% multiplicative jitter + sparse spikes
+            let mut a = vec![0f32; D];
+            let mut b = vec![0f32; D];
+            for i in 0..D {
+                let u1: f32 = rng.r#gen::<f32>().clamp(1e-7, 1.0 - 1e-7);
+                let u2: f32 = rng.r#gen::<f32>().clamp(1e-7, 1.0 - 1e-7);
+                let exp_a = -u1.ln(); // exponential(1)
+                let jitter = 1.0 + 0.15 * (rng.r#gen::<f32>() - 0.5);
+                let spike = if rng.r#gen::<f32>() < 0.01 {
+                    0.5 * (-u2.ln())
+                } else {
+                    0.0
+                };
+                a[i] = exp_a;
+                b[i] = (exp_a * jitter + spike).max(0.0);
+            }
+
+            // Ground-truth cosine / angle
+            let (mut dot, mut na, mut nb) = (0f64, 0f64, 0f64);
+            for i in 0..D {
+                let (ai, bi) = (a[i] as f64, b[i] as f64);
+                dot += ai * bi;
+                na += ai * ai;
+                nb += bi * bi;
+            }
+            let cosine = (dot / (na.sqrt() * nb.sqrt())).clamp(-1.0, 1.0);
+            let theta = cosine.acos();
+
+            // SuperBit (weighted)
+            let sig_sb_a = sb.create_signature_weighted((0..D).map(|i| (i as u64, a[i])));
+            let sig_sb_b = sb.create_signature_weighted((0..D).map(|i| (i as u64, b[i])));
+            let hd_sb = sig_sb_a.hamming_distance(&sig_sb_b);
+            let th_sb = std::f64::consts::PI * (hd_sb as f64) / (L as f64);
+            mae_sb += (th_sb - theta).abs();
+
+            // Classic SimHash (weighted) — relies on your added weighted API
+            let sig_sh_a = sh.create_signature_weighted((0..D).map(|i| (i as u64, a[i])));
+            let sig_sh_b = sh.create_signature_weighted((0..D).map(|i| (i as u64, b[i])));
+            let hd_sh = sig_sh_a.hamming_distance(&sig_sh_b);
+            let th_sh = std::f64::consts::PI * (hd_sh as f64) / (L as f64);
+            mae_sh += (th_sh - theta).abs();
+        }
+
+        mae_sb /= REPS as f64;
+        mae_sh /= REPS as f64;
+
+        eprintln!(
+            "Weighted accuracy (angle MAE): SuperBit={:.6}, Classic={:.6}",
+            mae_sb, mae_sh
+        );
+
+        // Expect SuperBit's orthogonal hyperplanes to reduce variance => lower error.
+        // Allow a small tolerance for determinism; SuperBit should be strictly better here.
+        assert!(
+            mae_sb <= mae_sh * 0.9 + 1e-6,
+            "SuperBit did not improve enough: SB={:.6}, SH={:.6}",
+            mae_sb,
+            mae_sh
+        );
     }
 }

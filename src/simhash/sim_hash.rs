@@ -1,8 +1,7 @@
-use super::sim_hasher::SimHasher;
 use super::SimHashBits;
+use super::sim_hasher::SimHasher;
 use std::hash::Hash;
 use std::marker::PhantomData;
-
 
 pub struct SimHash<H, S, const L: usize>
 where
@@ -107,15 +106,13 @@ where
         }
         centroid
     }
-
-
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::sim_hasher::{SimSipHasher64, SimSipHasher128, Xxh3Hasher64, Xxh3Hasher128};
     use super::SimHash;
     use super::SimHashBits;
-    use super::super::sim_hasher::{SimSipHasher128, SimSipHasher64, Xxh3Hasher128, Xxh3Hasher64};
 
     fn whitespace_split(s: &str) -> impl Iterator<Item = &str> {
         s.split_whitespace()

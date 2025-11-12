@@ -1,14 +1,14 @@
+mod bitarray;
+mod fast_sim_hash;
 mod sim_hash;
 mod sim_hasher;
-mod fast_sim_hash;
-mod bitarray;
-mod superbit; 
+mod superbit;
 
-pub use bitarray::BitArray; 
-pub use sim_hash::SimHash;
-pub use sim_hasher::{SimSipHasher128, SimSipHasher64, Xxh3Hasher64, Xxh3Hasher128};
+pub use bitarray::BitArray;
 pub use fast_sim_hash::FastSimHash;
-pub use superbit::SuperBitSimHash; 
+pub use sim_hash::SimHash;
+pub use sim_hasher::{SimSipHasher64, SimSipHasher128, Xxh3Hasher64, Xxh3Hasher128};
+pub use superbit::SuperBitSimHash;
 
 use core::mem;
 
@@ -16,10 +16,7 @@ use num_traits::{One, Zero};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::ops::{
-    BitAnd, BitOr, BitOrAssign, BitXor, Not, Shl,
-    Shr, ShrAssign,
-};
+use std::ops::{BitAnd, BitOr, BitOrAssign, BitXor, Not, Shl, Shr, ShrAssign};
 
 pub trait SimHashBits:
     Sized
@@ -50,7 +47,7 @@ pub trait SimHashBits:
     fn hamming_distance(&self, rhs: &Self) -> usize;
 
     fn hamming_angle(&self, rhs: &Self) -> f64 {
-        self.hamming_distance(rhs) as f64 * (PI /  Self::bit_length() as f64)
+        self.hamming_distance(rhs) as f64 * (PI / Self::bit_length() as f64)
     }
 
     fn bit_length() -> usize;
