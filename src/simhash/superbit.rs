@@ -84,7 +84,6 @@ where
         mat
     }
 
-    #[inline]
     fn u01(seed: u64, x: u64) -> f32 {
         // xxhash-rust API: use `with_seed`
         let mut h = Xxh3::with_seed(seed);
@@ -94,7 +93,7 @@ where
         ((v >> 11) as f32 + 0.5) * (1.0 / ((1u64 << 53) as f32))
     }
 
-    /// Unweighted items: treat each item as weight 1.0 (like classic SimHash).
+    /// Unweighted items: treat each item as weight 1.0 (see classic SimHash).
     pub fn create_signature<U>(&self, iter: impl Iterator<Item = U>) -> S
     where
         U: Hash,

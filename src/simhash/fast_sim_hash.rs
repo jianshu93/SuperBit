@@ -147,7 +147,7 @@ where
         }
     }
 
-    /// Weighted variant (simple path): uses signed float counters.
+    /// Weighted variant: uses signed float counters.
     /// This keeps per-feature random bits from Xoroshiro but does not use the
     /// packed-counter bit-hack. Still quite fast; O(#features * L/64).
     pub fn create_signature_weighted<T, U, W>(&self, iter: T) -> S
