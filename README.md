@@ -23,7 +23,7 @@ superbit = { git = "https://github.com/jianshu93/SuperBit" }
 ```
 
 ## Usage
-Classif SimHash:
+Classic SimHash:
 
 ```rust
 use superbit::{SimHash, SimSipHasher64, SimSipHasher128, Xxh3Hasher64, Xxh3Hasher128};
